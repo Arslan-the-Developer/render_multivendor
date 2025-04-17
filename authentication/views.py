@@ -106,7 +106,7 @@ class GoogleRegistrationRedirect(APIView):
     def get(self, request, *arga, **kwargs):
 
         GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-        CLIENT_ID = "450797624075-llfg1bbjaltgtug4ldte9g1t1bqcp6e3.apps.googleusercontent.com"
+        CLIENT_ID = settings.GOOGLE_OAUTH_CLIENT_ID
         REDIRECT_URI = "http://localhost:8000/authentication/callback/google"
         SCOPE = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
 
@@ -142,8 +142,8 @@ class GoogleCallbackView(APIView):
 
         data = {
             "code": code,
-            "client_id": "450797624075-llfg1bbjaltgtug4ldte9g1t1bqcp6e3.apps.googleusercontent.com",
-            "client_secret": "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",
+            "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+            "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
             "redirect_uri": "http://localhost:8000/authentication/callback/google",
             "grant_type": "authorization_code",
         }
