@@ -1,16 +1,16 @@
-from django.contrib import admin
-from django.urls import path, include
-from django.conf.urls.static import static
-from django.conf import settings
+    from django.contrib import admin
+    from django.urls import path, include
+    from django.conf.urls.static import static
+    from django.conf import settings
 
-urlpatterns = [
+    urlpatterns = [
 
-    path('admin/', admin.site.urls),
-    
-    path('authentication/', include("authentication.urls")),
+        path('admin/', admin.site.urls),
+        
+        path('authentication/', include("authentication.urls")),
 
-    path('api/', include("api.urls")),
+        path('api/', include("api.urls")),
 
-    path('admin.api/', include("admin_api.urls")),
+        path('admin.api/', include("admin_api.urls")),
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
