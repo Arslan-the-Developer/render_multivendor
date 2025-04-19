@@ -161,16 +161,14 @@ if os.getenv('USE_NGROK') == 'True':
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://multivendor-app-final-frontend.vercel.app",
-    "http://multivendorecommerceapi-env.eba-4dpdjv8f.us-east-1.elasticbeanstalk.com",
-    "https://bc77-58-27-197-114.ngrok-free.app",
+    "https://render-multivendor.onrender.com",
 ]
 
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "https://multivendor-app-final-frontend.vercel.app",
-    "http://multivendorecommerceapi-env.eba-4dpdjv8f.us-east-1.elasticbeanstalk.com",
-    "https://bc77-58-27-197-114.ngrok-free.app",
+    "https://render-multivendor.onrender.com",
 ]
 
 REST_FRAMEWORK = {
