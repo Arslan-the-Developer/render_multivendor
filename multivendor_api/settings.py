@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.conf import settings
 from corsheaders.defaults import default_headers
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -33,6 +34,7 @@ INSTALLED_APPS = [
     'api',
     'admin_api',
     'rest_framework_simplejwt.token_blacklist',
+    'storages',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -120,17 +122,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
-STATIC_URL = 'static/'
-
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-MEDIA_URL = 'media/'
-
-MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -278,16 +269,33 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_STORAGE_BUCKET_NAME = "multivendor-api-bucket"
 
-AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')
+AWS_S3_REGION_NAME = "us-east-1"
 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
 
-AWS_QUERYSTRING_AUTH = False
+AWS_S3_FILE_OVERWRITE = False
 
-AWS_DEFAULT_ACL = None
 
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.1/howto/static-files/
+
+
+STORAGES = {
+    "default": {
+        "BACKEND" : "storages.backends.s3.S3Storage",
+    },
+
+    "staticfiles": {
+        "BACKEND" : "storages.backends.s3.S3Storage",
+    }
+}
+
+
+STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+
+MEDIA_URL  = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+
+# MEDIA_ROOT = BASE_DIR / 'media'
