@@ -83,11 +83,11 @@ WSGI_APPLICATION = 'multivendor_api.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'MultiVendorDB',
-        'USER': 'multivendor_db',
-        'PASSWORD': 'multivendor_ecommerce_api_database',
-        'HOST': 'multivendor-api-db.ckn8kssmem0m.us-east-1.rds.amazonaws.com',
-        'PORT': '5432',
+        'NAME': 'defaultdb',
+        'USER': 'avnadmin',
+        'PASSWORD': 'AVNS_eZKoqTi3X4dV5mPualv',
+        'HOST': 'multivendor-app-db-callmearslanahmed-2b69.c.aivencloud.com',
+        'PORT': '20947',
     }
 }
 
