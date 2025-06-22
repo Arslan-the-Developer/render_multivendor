@@ -107,7 +107,7 @@ class GoogleRegistrationRedirect(APIView):
 
         GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
         CLIENT_ID = settings.GOOGLE_OAUTH_CLIENT_ID
-        REDIRECT_URI = "http://localhost:8000/authentication/callback/google"
+        REDIRECT_URI = f"{settings.APPLICATION_URL}/authentication/callback/google"
         SCOPE = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
 
         
@@ -144,7 +144,7 @@ class GoogleCallbackView(APIView):
             "code": code,
             "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
             "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
-            "redirect_uri": "http://localhost:8000/authentication/callback/google",
+            "redirect_uri": f"{settings.APPLICATION_URL}/authentication/callback/google",
             "grant_type": "authorization_code",
         }
 
@@ -181,14 +181,14 @@ class GoogleCallbackView(APIView):
 
         except IntegrityError:
             
-            return redirect(f"http://localhost:5173/auth/google-registration-callback?message=This User Already Exsits")
+            return redirect(f"{settings.FRONTEND_URL}/auth/google-registration-callback?message=This User Already Exsits")
 
         
         
         verification_to_pass = assign_verification_token(user = user)       
 
 
-        return redirect(f"http://localhost:5173/auth/google-registration-callback?verification_token={verification_to_pass}")
+        return redirect(f"{settings.FRONTEND_URL}/auth/google-registration-callback?verification_token={verification_to_pass}")
 
 
 
