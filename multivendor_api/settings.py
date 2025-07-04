@@ -265,7 +265,7 @@ AWS_STORAGE_BUCKET_NAME = "multivendor-ecommerce-bucket"
 AWS_S3_ENDPOINT_URL = "https://s3.tebi.io"
 
 # Optional settings
-AWS_S3_FILE_OVERWRITE = False
+AWS_S3_FILE_OVERWRITE = True
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = False
 
