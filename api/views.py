@@ -1344,10 +1344,16 @@ def check_image_exploitation(image) -> list:
     }
 
     files = {'media': image}
+
+    print("Starting Image Exploitation Check Request")
     
     r = requests.post('https://api.sightengine.com/1.0/check.json', files=files ,  data=params)
 
+    print("Started Image Exploitation Check Request")
+
     output = json.loads(r.text)
+
+    print("Test Complete")
 
     sexual_activity = output['nudity']['sexual_activity']
     sexual_display = output['nudity']['sexual_display']
