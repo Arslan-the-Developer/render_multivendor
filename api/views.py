@@ -15,7 +15,7 @@ import stripe.error
 
 from authentication.permissions import IsSeller, IsApprovedSeller
 from authentication.models import SellerStore, User
-from .models import Product, ProductImage, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress
+from .models import Product, ProductImage, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, VariantImage
 from .serializers import ProductSerializer, ReviewSerializer, CartItemSerializer, UserOrderSerializer, WishlistSerializer, RevenueMonthSerializer, UserDeliveryAddressSerializer, SellerOrderSerializer
 
 # DJANGO DEPENDENCIES
@@ -162,6 +162,84 @@ class GetSellerDetails(APIView):
 
 
 
+class TestCreateProduct(APIView):
+
+    permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
+
+    def post(self, request):
+
+        try:
+
+            store = SellerStore.objects.get(user=request.user)
+
+        except SellerStore.DoesNotExist:
+
+            return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
+
+
+        # RETREIVE DATA FROM FRONTEND
+
+        frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) ,  "product_description" : request.data.get("product_description",None) , "product_keywords" : request.data.get('product_keywords',None), "product_variants" : request.data.get('product_variants', None)}
+
+
+        for field,value in frontend_data.items():
+
+            if value is None or re.match(r"^$|^ $", value):
+
+                return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
+            
+        
+        if len(frontend_data.get('product_keywords')) < 5:
+
+            return Response(f"Please Enter 5 Keywords For Your Product",status=status.HTTP_400_BAD_REQUEST)
+        
+        processed_keywords = ",".join(i for i in frontend_data.get('product_keywords'))
+
+
+        for variant in frontend_data.get("product_variants"):
+
+            for img in variant.get('images'):
+
+                check_result = check_image_exploitation(image=img.get('file'))
+
+                if not check_result[0]:
+
+                    return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+                
+        
+        try:
+    
+            product = Product.objects.create(
+                product_store = store,
+                product_name = frontend_data.get('product_name'),
+                product_description = frontend_data.get('product_description'),
+                product_sub_category = frontend_data.get('product_subcategory'),
+                product_keywords = processed_keywords
+                )
+        
+        except IntegrityError as e:
+
+            return Response(f"The Product '{frontend_data.get('product_name')}' Already Exists In Your Store",status=status.HTTP_400_BAD_REQUEST)
+        
+        
+        try:
+
+            for variant in frontend_data.get('product_variants'):
+
+                new_variant = ProductVariant.objects.create(product=product, variant_name=variant.get('name'), variant_price=variant.get('price'), variant_quantity=variant.get('quantity'))
+
+                for img in variant.get('images'):
+
+                    VariantImage.objects.create(variant=new_variant, variant_image=img)
+        
+        except Exception as e:
+
+            return Response(f"e", status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
 
 class CreateProduct(APIView):
 
@@ -180,7 +258,7 @@ class CreateProduct(APIView):
 
         # RETREIVE DATA FROM FRONTEND
 
-        frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) , "product_price" : request.data.get("product_price",None), "product_quantity" : request.data.get("product_quantity", None) , "product_description" : request.data.get("product_description",None), "uploaded_images" : request.FILES.getlist("product_image",None), "product_keywords" : request.data.get('product_keywords',None)}
+        frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) , "product_price" : request.data.get("product_price",None), "product_quantity" : request.data.get("product_quantity", None) , "product_description" : request.data.get("product_description",None), "uploaded_images" : request.FILES.getlist("product_image",None), "product_keywords" : request.data.get('product_keywords',None), "variant_names" : request.data.getlist('variant_name'), "variant_images" : request.FILES.getlist('variant_image')}
 
         
         # VALIDATE THE FIELDS
@@ -198,16 +276,25 @@ class CreateProduct(APIView):
 
 
         compresseed_images = []
+        variant_compresseed_images = []
 
+        
         for image in frontend_data.get('uploaded_images'):
             
             compresseed_images.append(compress_image(image=image))
+        
+        
+        
+        for v_image in frontend_data.get('variant_images'):
+            
+            variant_compresseed_images.append(compress_image(image=v_image))
 
         
         # UPDATE THE ORIGINAL WITH COMPRESSED
 
         
         frontend_data.update({"uploaded_images":compresseed_images})
+        frontend_data.update({"variant_images":variant_compresseed_images})
 
 
         # CHECK IMAGES EXPLOITATION
@@ -220,7 +307,17 @@ class CreateProduct(APIView):
 
                 return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
 
+        
+        # VARIANT IMAGES CHECK
+        
+        for v_img in frontend_data.get('variant_images'):
 
+            v_check_result = check_image_exploitation(image=v_img)
+
+            if not v_check_result[0]:
+
+                return Response(v_check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+            
 
 
         if len([keyword for keyword in str(frontend_data.get('product_keywords')).split(",") if keyword.strip()]) < 5:
@@ -255,6 +352,17 @@ class CreateProduct(APIView):
         for image in frontend_data.get('uploaded_images'):
 
             ProductImage.objects.create(product=product,image=image)
+        
+        
+        try:
+            
+            for vimg, vname in zip(frontend_data.get('variant_images'),frontend_data.get('variant_names')):
+
+                ProductVariant.objects.create(product=product, variant_name=vname, variant_image=vimg)
+
+        except IntegrityError:
+
+            return Response("No Duplicate Variants Can Be Created", status=status.HTTP_400_BAD_REQUEST)
 
         
         # RETURN THE RESPONSE

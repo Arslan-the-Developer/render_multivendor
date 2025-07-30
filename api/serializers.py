@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Product, ProductImage, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, SellerOrder, SellerOrderItem
+from .models import Product, ProductImage, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, SellerOrder, SellerOrderItem, ProductVariant
 from authentication.models import SellerStore, User
 
 from django.db.models import Avg
@@ -46,6 +46,14 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ['image']  # Avoid nesting product inside image serializer unless required
 
 
+class ProductVariantSerializer(serializers.ModelSerializer):
+
+    class Meta:
+
+        model = ProductVariant
+        fields = ['variant_name','variant_image']
+
+
 
 class ProductSerializer(serializers.ModelSerializer):
     
@@ -56,11 +64,12 @@ class ProductSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     is_product_in_cart = serializers.SerializerMethodField()
     is_product_in_wishlist = serializers.SerializerMethodField()
+    product_variants = ProductVariantSerializer(many=True, read_only=True)
 
     class Meta:
         
         model = Product
-        fields = ['id','product_store', 'product_name', 'product_price', 'product_quantity', 'product_sub_category' ,'product_description', 'product_keywords' ,'product_images','average_rating','is_product_in_cart','is_product_in_wishlist','sold_count']
+        fields = ['id','product_store', 'product_name', 'product_price', 'product_quantity', 'product_sub_category' ,'product_description', 'product_keywords' ,'product_images','average_rating','is_product_in_cart','is_product_in_wishlist','sold_count','product_variants']
 
     def get_average_rating(self, obj):
 

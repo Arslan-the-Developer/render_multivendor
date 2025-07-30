@@ -54,6 +54,35 @@ class ProductImage(models.Model):
 
 
 
+class ProductVariant(models.Model):
+
+    product = models.ForeignKey(Product,on_delete=models.CASCADE,related_name='product_variants')
+    variant_name = models.CharField(max_length=50)
+    variant_price = models.PositiveBigIntegerField(default=0)
+    variant_quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['product','variant_name'],
+                name = 'unique_variant_per_product'
+            )
+        ]
+    
+    def __str__(self) -> str:
+        return f"Variant {self.variant_name} | {self.product.product_name}"
+
+
+
+
+class VariantImage(models.Model):
+
+    variant = models.ForeignKey(ProductVariant,on_delete=models.CASCADE,related_name='variant_images')
+    variant_image = models.ImageField(upload_to="product_variants", validators=[FileExtensionValidator(allowed_extensions=['png','jpg'])], null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"Variant Image Of {self.variant.variant_name} | {self.variant.product.product_name}"
+
 
 
 class ProductReview(models.Model):

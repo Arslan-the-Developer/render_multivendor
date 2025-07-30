@@ -17,6 +17,8 @@ urlpatterns = [
     
     path('create_product', views.CreateProduct.as_view()),
 
+    path('create_test_product', views.TestCreateProduct.as_view()),
+
     path('get_all_products/', views.GetAllProducts.as_view()),
     
     path('get_category_products/<str:product_category>', views.GetCategoryProducts.as_view()),
