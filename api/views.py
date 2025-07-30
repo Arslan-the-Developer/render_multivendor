@@ -186,11 +186,20 @@ class TestCreateProduct(APIView):
 
         frontend_data = {"product_name" : request.data.get("product_name", None), "product_subcategory": request.data.get("product_subcategory", None), "product_description": request.data.get("product_description", None), "product_keywords" : request.data.get("product_keywords", None), "product_variants" : variants}
 
-        for field,value in frontend_data.items():
-
-            if value is None or re.match(r"^$|^ $", value):
-
+        for field, value in frontend_data.items():
+            # 1. Missing entirely?
+            if value is None:
                 return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
+
+            # 2. If it’s a string, check empty or blank
+            if isinstance(value, str):
+                if re.match(r"^\s*$", value):
+                    return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
+
+            # 3. If it’s a list, check that it has at least one element
+            elif isinstance(value, list):
+                if not value:
+                    return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
             
 
        
