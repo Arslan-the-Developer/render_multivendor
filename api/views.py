@@ -178,32 +178,25 @@ class TestCreateProduct(APIView):
             return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
 
 
-        raw_variants = request.data.get("product_variants", None)
-        raw_keywords = request.data.get("product_keywords", None)
-
-        try:
-
-            variants_list = json.loads(raw_variants) if isinstance(raw_variants, str) else raw_variants
-            keywords_list = json.loads(raw_keywords) if isinstance(raw_keywords, str) else raw_keywords
-
-        except ValueError:
-
-            return Response("Invalid JSON in product_variants or product_keywords", status=status.HTTP_400_BAD_REQUEST)
+        raw_variants = request.data.get("product_variants", "[]")
+        variants = json.loads(raw_variants)
 
 
         # RETREIVE DATA FROM FRONTEND
 
-        frontend_data = {"product_name" : request.data.get("product_name", None), "product_subcategory": request.data.get("product_subcategory", None), "product_description": request.data.get("product_description", None), "product_keywords" : keywords_list, "product_variants" : variants_list}
+        frontend_data = {"product_name" : request.data.get("product_name", None), "product_subcategory": request.data.get("product_subcategory", None), "product_description": request.data.get("product_description", None), "product_keywords" : request.data.get("product_keywords", None), "product_variants" : variants}
 
-        for variant in frontend_data["product_variants"]:
+        for idx, variant in enumerate(frontend_data["product_variants"]):
 
-            for img in variant.get("images", []):
+             images = request.FILES.getlist(f"variant_{idx}_image")
 
-                check_result = check_image_exploitation(image=img.get('file'))
+             for file in images:
+
+                check_result = check_image_exploitation(image=file)
 
                 if not check_result[0]:
 
-                    return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+                    return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
         # for field,value in frontend_data.items():
