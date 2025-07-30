@@ -35,6 +35,7 @@ from PIL import Image
 import re , sys, requests, json
 from io import BytesIO
 import stripe
+import json
 from datetime import datetime
 
 
@@ -177,16 +178,32 @@ class TestCreateProduct(APIView):
             return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
 
 
+        raw_variants = request.data.get("product_variants", None)
+        raw_keywords = request.data.get("product_keywords", None)
+
+        try:
+
+            variants_list = json.loads(raw_variants) if isinstance(raw_variants, str) else raw_variants
+            keywords_list = json.loads(raw_keywords) if isinstance(raw_keywords, str) else raw_keywords
+
+        except ValueError:
+
+            return Response("Invalid JSON in product_variants or product_keywords", status=status.HTTP_400_BAD_REQUEST)
+
+
         # RETREIVE DATA FROM FRONTEND
 
-        frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) ,  "product_description" : request.data.get("product_description",None) , "product_keywords" : request.data.get('product_keywords',None), "product_variants" : request.data.get('product_variants', None)}
+        frontend_data = {"product_name" : request.data.get("product_name", None), "product_subcategory": request.data.get("product_subcategory", None), "product_description": request.data.get("product_description", None), "product_keywords" : keywords_list, "product_variants" : variants_list}
 
-        for field,value in frontend_data.items():
+        for variant in frontend_data["product_variants"]:
 
-            print(field,value)
+            for img in variant.get("images", []):
 
-        
-        return Response("Everything Is OK", status=status.HTTP_200_OK)
+                check_result = check_image_exploitation(image=img.get('file'))
+
+                if not check_result[0]:
+
+                    return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
         # for field,value in frontend_data.items():
