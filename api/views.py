@@ -181,60 +181,67 @@ class TestCreateProduct(APIView):
 
         frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) ,  "product_description" : request.data.get("product_description",None) , "product_keywords" : request.data.get('product_keywords',None), "product_variants" : request.data.get('product_variants', None)}
 
-
         for field,value in frontend_data.items():
 
-            if value is None or re.match(r"^$|^ $", value):
+            print(field,value)
 
-                return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response("Everything Is OK", status=status.HTTP_200_OK)
+
+
+        # for field,value in frontend_data.items():
+
+        #     if value is None or re.match(r"^$|^ $", value):
+
+        #         return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
             
         
-        if len(frontend_data.get('product_keywords')) < 5:
+        # if len(frontend_data.get('product_keywords')) < 5:
 
-            return Response(f"Please Enter 5 Keywords For Your Product",status=status.HTTP_400_BAD_REQUEST)
+        #     return Response(f"Please Enter 5 Keywords For Your Product",status=status.HTTP_400_BAD_REQUEST)
         
-        processed_keywords = ",".join(i for i in frontend_data.get('product_keywords'))
+        # processed_keywords = ",".join(i for i in frontend_data.get('product_keywords'))
 
 
-        for variant in frontend_data.get("product_variants"):
+        # for variant in frontend_data.get("product_variants"):
 
-            for img in variant.get('images'):
+        #     for img in variant.get('images'):
 
-                check_result = check_image_exploitation(image=img.get('file'))
+        #         check_result = check_image_exploitation(image=img.get('file'))
 
-                if not check_result[0]:
+        #         if not check_result[0]:
 
-                    return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+        #             return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
                 
         
-        try:
+        # try:
     
-            product = Product.objects.create(
-                product_store = store,
-                product_name = frontend_data.get('product_name'),
-                product_description = frontend_data.get('product_description'),
-                product_sub_category = frontend_data.get('product_subcategory'),
-                product_keywords = processed_keywords
-                )
+        #     product = Product.objects.create(
+        #         product_store = store,
+        #         product_name = frontend_data.get('product_name'),
+        #         product_description = frontend_data.get('product_description'),
+        #         product_sub_category = frontend_data.get('product_subcategory'),
+        #         product_keywords = processed_keywords
+        #         )
         
-        except IntegrityError as e:
+        # except IntegrityError as e:
 
-            return Response(f"The Product '{frontend_data.get('product_name')}' Already Exists In Your Store",status=status.HTTP_400_BAD_REQUEST)
+        #     return Response(f"The Product '{frontend_data.get('product_name')}' Already Exists In Your Store",status=status.HTTP_400_BAD_REQUEST)
         
         
-        try:
+        # try:
 
-            for variant in frontend_data.get('product_variants'):
+        #     for variant in frontend_data.get('product_variants'):
 
-                new_variant = ProductVariant.objects.create(product=product, variant_name=variant.get('name'), variant_price=variant.get('price'), variant_quantity=variant.get('quantity'))
+        #         new_variant = ProductVariant.objects.create(product=product, variant_name=variant.get('name'), variant_price=variant.get('price'), variant_quantity=variant.get('quantity'))
 
-                for img in variant.get('images'):
+        #         for img in variant.get('images'):
 
-                    VariantImage.objects.create(variant=new_variant, variant_image=img)
+        #             VariantImage.objects.create(variant=new_variant, variant_image=img)
         
-        except Exception as e:
+        # except Exception as e:
 
-            return Response(f"e", status=status.HTTP_400_BAD_REQUEST)
+        #     return Response(f"e", status=status.HTTP_400_BAD_REQUEST)
 
 
 
