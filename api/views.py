@@ -165,69 +165,95 @@ class GetSellerDetails(APIView):
 
 class TestCreateProduct(APIView):
 
-    permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
+    # permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
 
-    def post(self, request, *args, **kwargs):
-        # 1️⃣ grab & parse your JSON metadata
-        raw_variants = request.data.get("product_variants", "[]")
-        try:
-            variants = json.loads(raw_variants)
-        except json.JSONDecodeError:
-            return Response("Invalid JSON for product_variants",
-                            status=status.HTTP_400_BAD_REQUEST)
 
-        # 2️⃣ basic field validation
-        required = {
-            "product_name": request.data.get("product_name"),
-            "product_subcategory": request.data.get("product_subcategory"),
-            "product_description": request.data.get("product_description"),
-            "product_keywords": request.data.get("product_keywords"),
-        }
-        for field, val in required.items():
-            if not val or (isinstance(val, str) and not val.strip()):
-                return Response(f"Enter Correct Data For {field}",
-                                status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
 
-        # keywords count
-        keywords = json.loads(request.data["product_keywords"])
-        if len(keywords) < 5:
-            return Response("Please enter at least 5 keywords",
-                            status=status.HTTP_400_BAD_REQUEST)
+        # try:
 
-        # 3️⃣ Debug: inspect what files DRF actually got
-        print("CONTENT_TYPE:", request.META.get("CONTENT_TYPE"))
-        print("FILES keys:", list(request.FILES.keys()))
-        for idx in range(len(variants)):
-            files = request.FILES.getlist(f"variant_{idx}_image")
-            print(f"→ variant_{idx}_image count:", len(files),
-                  "; names:", [f.name for f in files])
+        #     store = SellerStore.objects.get(user=request.user)
 
-        # 4️⃣ Now loop & call your exploitation check
-        for idx, variant in enumerate(variants):
-            images = request.FILES.getlist(f"variant_{idx}_image")
-            if not images:
-                return Response(f"No images for variant #{idx}",
-                                status=status.HTTP_400_BAD_REQUEST)
+        # except SellerStore.DoesNotExist:
 
-            for img in images:
-                ok, msg = check_image_exploitation(image=img)
-                if not ok:
-                    return Response(msg, status=status.HTTP_406_NOT_ACCEPTABLE)
+        #     return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
 
-        # 5️⃣ If we got here, all images passed—proceed to save...
-        # (your saving logic)
+        frontend_data = {
+            "product_name" : request.data.get("product_name", None),
+            "product_subcategory" : request.data.get("product_subcategory", None),
+            "product_description" : request.data.get("product_description", None),
+            "raw_keywords" : request.data.get("product_keywords", None),
+            "raw_variants" : request.data.get("product_variants", None)
+            }
+        
+        
+        for field, value in frontend_data.items():
 
-        return Response({"detail": "Product created"}, status=status.HTTP_201_CREATED)
+            if value is None:
+                print(f"Enter Correct Data For {field}")
+                continue  # Skip further checks if None
 
-    # def post(self, request):
+            if field != "raw_keywords" and field != "raw_variants":
+                if re.match(r"^\s*$", value):
+                    print(f"{field} Cannot Be Empty or Blank Space")
 
-    #     # try:
+            if field == "raw_keywords":
+                try:
+                    keywords = json.loads(frontend_data['raw_keywords'])
+                    if not isinstance(keywords, list):
+                        print('Keywords Must Be A List')
+                    elif len(keywords) < 5:
+                        print("At least 5 Keywords Must Be Entered")
+                except json.JSONDecodeError:
+                    print("Invalid JSON for Keywords")
 
-    #     #     store = SellerStore.objects.get(user=request.user)
+            if field == "raw_variants":
+                try:
+                    variants = json.loads(frontend_data['raw_variants'])
+                    if not isinstance(variants, list):
+                        print("Product Variants Must Be A List")
+                    elif len(variants) < 1:
+                        print("At least 1 Variant Must Be Provided")
+                except json.JSONDecodeError:
+                    print("Invalid JSON for Variants")
 
-    #     # except SellerStore.DoesNotExist:
 
-    #     #     return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
+
+        product_variants = json.loads(frontend_data.get('raw_variants'))
+        product_keywords = json.loads(frontend_data.get('raw_keywords'))
+        
+        print(f"Product Name : {frontend_data['product_name']}")
+        print(f"Product Sub Category : {frontend_data['product_subcategory']}")
+        print(f"Product Description : {frontend_data['product_description']}")
+        print(f"Product Keywords : {product_keywords}")
+        print(f"Product Variants : {product_variants}")
+
+        
+        for idx, variant in enumerate(product_variants):
+
+            for image in request.FILES.getlist(f'variant_{idx}_image'):
+
+                try:
+
+                    image = Image.open(image)
+                    image.verify()
+
+                    print(f"Image 'variant_{idx}_image : {image} is Verified")
+
+                except (IOError, SyntaxError) as e:
+
+                    print(f"File 'variant_{idx}_image' : {image} Isn't An Image")
+
+                # check_result = check_image_exploitation(image=image)
+
+                # if not check_result[0]:
+
+                #     return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        processed_keywords = ",".join(i for i in product_keywords)
+        
+
+        return Response("OK",status=status.HTTP_200_OK)
 
 
     #     raw_variants = request.data.get("product_variants", "[]")
@@ -1736,3 +1762,6 @@ def extract_sub_categories_from_parent(parent_name : str) -> dict:
         case _ :
 
             return {'error' : f"No Such Category Like {parent_name}"}
+        
+
+
