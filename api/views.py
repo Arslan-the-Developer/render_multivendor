@@ -165,18 +165,18 @@ class GetSellerDetails(APIView):
 
 class TestCreateProduct(APIView):
 
-    # permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
+    permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
 
 
     def post(self, request):
 
-        # try:
+        try:
 
-        #     store = SellerStore.objects.get(user=request.user)
+            store = SellerStore.objects.get(user=request.user)
 
-        # except SellerStore.DoesNotExist:
+        except SellerStore.DoesNotExist:
 
-        #     return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
+            return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
 
         frontend_data = {
             "product_name" : request.data.get("product_name", None),
@@ -251,7 +251,7 @@ class TestCreateProduct(APIView):
                 #     return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
 
         processed_keywords = ",".join(i for i in product_keywords)
-        
+
 
         return Response("OK",status=status.HTTP_200_OK)
 
