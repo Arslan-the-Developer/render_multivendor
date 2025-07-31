@@ -244,110 +244,62 @@ class TestCreateProduct(APIView):
 
                     print(f"File 'variant_{idx}_image' : {image} Isn't An Image")
 
-                # check_result = check_image_exploitation(image=image)
+            for image in request.FILES.getlist(f'variant_{idx}_image'):
 
-                # if not check_result[0]:
+                check_result = check_image_exploitation(image=image)
 
-                #     return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
+                if not check_result[0]:
+
+                    return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
+                
 
         processed_keywords = ",".join(i for i in product_keywords)
+                
+        
+        try:
+            with transaction.atomic():
+                product = Product.objects.create(
+                    product_store=store,
+                    product_name=frontend_data["product_name"],
+                    product_description=frontend_data['product_description'],
+                    product_keywords=processed_keywords,
+                    product_sub_category=frontend_data['product_subcategory']
+                    )
 
+                for idx, variant in enumerate(product_variants):
+                    new_variant = ProductVariant.objects.create(
+                        product=product,
+                        variant_name=variant['name'],
+                        variant_price=variant['price'],
+                        variant_quantity=variant['quantity']
+                    )
 
-        return Response("OK",status=status.HTTP_200_OK)
+                    # pull actual uploaded files
+                    variant_images = request.FILES.getlist(f"variant_{idx}_image")
 
+                    if not variant_images:
 
-    #     raw_variants = request.data.get("product_variants", "[]")
-    #     variants = json.loads(raw_variants)
+                        raise ValidationError(f"No images provided for variant #{idx}")
 
+                    for image in variant_images:
 
-    #     # RETREIVE DATA FROM FRONTEND
+                        VariantImage.objects.create(
+                            variant=new_variant,
+                            variant_image=compress_image(image=image)
+                        )
+                
+                return Response(f"Product '{product.product_name} Is Created Successfully", status=status.HTTP_200_OK)
 
-    #     frontend_data = {"product_name" : request.data.get("product_name", None), "product_subcategory": request.data.get("product_subcategory", None), "product_description": request.data.get("product_description", None), "product_keywords" : request.data.get("product_keywords", None), "product_variants" : variants}
+        except ValidationError as ve:
 
-    #     for field, value in frontend_data.items():
-    #         # 1. Missing entirely?
-    #         if value is None:
-    #             return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
+            return Response(str(ve), status=status.HTTP_400_BAD_REQUEST)
 
-    #         # 2. If it’s a string, check empty or blank
-    #         if isinstance(value, str):
-    #             if re.match(r"^\s*$", value):
-    #                 return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
-
-    #         # 3. If it’s a list, check that it has at least one element
-    #         elif isinstance(value, list):
-    #             if not value:
-    #                 return Response(f"Enter Correct Data For {field}", status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
             
-
-       
-    #     if len(frontend_data.get('product_keywords')) < 5:
-
-    #         return Response(f"Please Enter 5 Keywords For Your Product",status=status.HTTP_400_BAD_REQUEST)
-        
-    #     processed_keywords = ",".join(i for i in frontend_data.get('product_keywords'))
-
-
-    #     print(request.FILES.getlist('variant_0_image'))
-
-
-
-    #     for idx, variant in enumerate(frontend_data["product_variants"]):
-
-    #          images = request.FILES.getlist(f"variant_{idx}_image")
-
-    #          for file in images:
-
-    #             check_result = check_image_exploitation(image=file)
-
-    #             if not check_result[0]:
-
-    #                 return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-        
-    #     return Response("OK", status=status.HTTP_200_OK)
-                
-        
-        # try:
-        #     with transaction.atomic():
-        #         product = Product.objects.create(
-        #             product_store=store,
-        #             product_name=frontend_data["product_name"],
-        #             product_description=frontend_data['product_description'],
-        #             product_keywords=processed_keywords,
-        #             product_sub_category=frontend_data['product_subcategory']
-        #             )
-
-        #         for idx, variant_data in enumerate(variants):
-        #             new_variant = ProductVariant.objects.create(
-        #                 product=product,
-        #                 variant_name=variant_data['name'],
-        #                 variant_price=variant_data['price'],
-        #                 variant_quantity=variant_data['quantity']
-        #             )
-
-        #             # pull actual uploaded files
-        #             files = request.FILES.getlist(f"variant_{idx}_image")
-        #             if not files:
-        #                 raise ValidationError(f"No images provided for variant #{idx+1}")
-
-        #             for file in files:
-        #                 ok, msg = check_image_exploitation(image=file)
-        #                 if not ok:
-        #                     raise ValidationError(msg)
-        #                 VariantImage.objects.create(
-        #                     variant=new_variant,
-        #                     variant_image=file
-        #                 )
-
-        # except ValidationError as ve:
-        #     return Response(str(ve), status=status.HTTP_400_BAD_REQUEST)
-
-        # except IntegrityError:
-        #     return Response(
-        #         f"The Product '{frontend_data['product_name']}' Already Exists In Your Store",
-        #         status=status.HTTP_400_BAD_REQUEST
-        #     )
+            return Response(
+                f"The Product '{frontend_data['product_name']}' Already Exists In Your Store",
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 
