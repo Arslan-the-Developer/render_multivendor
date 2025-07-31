@@ -244,9 +244,9 @@ class TestCreateProduct(APIView):
 
                     print(f"File 'variant_{idx}_image' : {image} Isn't An Image")
 
-            for image in request.FILES.getlist(f'variant_{idx}_image'):
+            for v_image in request.FILES.getlist(f'variant_{idx}_image'):
 
-                check_result = check_image_exploitation(image=image)
+                check_result = check_image_exploitation(image=compress_image(v_image))
 
                 if not check_result[0]:
 
