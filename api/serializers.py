@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Product, ProductImage, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, SellerOrder, SellerOrderItem, ProductVariant
+from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, SellerOrder, SellerOrderItem, ProductVariant, VariantImage
 from authentication.models import SellerStore, User
 
 from django.db.models import Avg
@@ -38,20 +38,32 @@ class SellerStoreSerializer(serializers.ModelSerializer):
 
 
 
-class ProductImageSerializer(serializers.ModelSerializer):
+# class ProductImageSerializer(serializers.ModelSerializer):
+
+#     class Meta:
+
+#         model = ProductImage
+#         fields = ['image']  # Avoid nesting product inside image serializer unless required
+
+class VariantImageSerializer(serializers.ModelSerializer):
 
     class Meta:
 
-        model = ProductImage
-        fields = ['image']  # Avoid nesting product inside image serializer unless required
+        model = VariantImage
+        fields = ['variant_image']  # Avoid nesting product inside image serializer unless required
+
+
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
 
+    variant_images = VariantImageSerializer(many=True, read_only=True)
+
     class Meta:
 
         model = ProductVariant
-        fields = ['variant_name','variant_image']
+        fields = ['variant_name','variant_price','variant_quantity','variant_images']
+
 
 
 
@@ -60,7 +72,7 @@ class ProductSerializer(serializers.ModelSerializer):
     # Nest the images in the product serializer
 
     product_store = SellerStoreSerializer()
-    product_images = ProductImageSerializer(many=True, read_only=True)
+    # product_images = ProductImageSerializer(many=True, read_only=True)
     average_rating = serializers.SerializerMethodField()
     is_product_in_cart = serializers.SerializerMethodField()
     is_product_in_wishlist = serializers.SerializerMethodField()
@@ -69,7 +81,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         
         model = Product
-        fields = ['id','product_store', 'product_name', 'product_price', 'product_quantity', 'product_sub_category' ,'product_description', 'product_keywords' ,'product_images','average_rating','is_product_in_cart','is_product_in_wishlist','sold_count','product_variants']
+        fields = ['id','product_store', 'product_name', 'product_sub_category' ,'product_description', 'product_keywords' , 'average_rating', 'is_product_in_cart', 'is_product_in_wishlist', 'sold_count', 'product_variants']
 
     def get_average_rating(self, obj):
 
