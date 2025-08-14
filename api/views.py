@@ -15,7 +15,7 @@ import stripe.error
 
 from authentication.permissions import IsSeller, IsApprovedSeller
 from authentication.models import SellerStore, User
-from .models import Product, ProductImage, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, VariantImage
+from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, ProductImage, ProductVariantCategory
 from .serializers import ProductSerializer, ReviewSerializer, CartItemSerializer, UserOrderSerializer, WishlistSerializer, RevenueMonthSerializer, UserDeliveryAddressSerializer, SellerOrderSerializer
 
 # DJANGO DEPENDENCIES
@@ -163,148 +163,6 @@ class GetSellerDetails(APIView):
 
 
 
-class TestCreateProduct(APIView):
-
-    permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
-
-
-    def post(self, request):
-
-        try:
-
-            store = SellerStore.objects.get(user=request.user)
-
-        except SellerStore.DoesNotExist:
-
-            return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
-
-        frontend_data = {
-            "product_name" : request.data.get("product_name", None),
-            "product_subcategory" : request.data.get("product_subcategory", None),
-            "product_description" : request.data.get("product_description", None),
-            "raw_keywords" : request.data.get("product_keywords", None),
-            "raw_variants" : request.data.get("product_variants", None)
-            }
-        
-        
-        for field, value in frontend_data.items():
-
-            if value is None:
-                print(f"Enter Correct Data For {field}")
-                continue  # Skip further checks if None
-
-            if field != "raw_keywords" and field != "raw_variants":
-                if re.match(r"^\s*$", value):
-                    print(f"{field} Cannot Be Empty or Blank Space")
-
-            if field == "raw_keywords":
-                try:
-                    keywords = json.loads(frontend_data['raw_keywords'])
-                    if not isinstance(keywords, list):
-                        print('Keywords Must Be A List')
-                    elif len(keywords) < 5:
-                        print("At least 5 Keywords Must Be Entered")
-                except json.JSONDecodeError:
-                    print("Invalid JSON for Keywords")
-
-            if field == "raw_variants":
-                try:
-                    variants = json.loads(frontend_data['raw_variants'])
-                    if not isinstance(variants, list):
-                        print("Product Variants Must Be A List")
-                    elif len(variants) < 1:
-                        print("At least 1 Variant Must Be Provided")
-                except json.JSONDecodeError:
-                    print("Invalid JSON for Variants")
-
-
-
-        product_variants = json.loads(frontend_data.get('raw_variants'))
-        product_keywords = json.loads(frontend_data.get('raw_keywords'))
-        
-        print(f"Product Name : {frontend_data['product_name']}")
-        print(f"Product Sub Category : {frontend_data['product_subcategory']}")
-        print(f"Product Description : {frontend_data['product_description']}")
-        print(f"Product Keywords : {product_keywords}")
-        print(f"Product Variants : {product_variants}")
-
-        
-        for idx, variant in enumerate(product_variants):
-
-            for image in request.FILES.getlist(f'variant_{idx}_image'):
-
-                try:
-
-                    image = Image.open(image)
-                    image.verify()
-
-                    print(f"Image 'variant_{idx}_image : {image} is Verified")
-
-                except (IOError, SyntaxError) as e:
-
-                    print(f"File 'variant_{idx}_image' : {image} Isn't An Image")
-
-            for v_image in request.FILES.getlist(f'variant_{idx}_image'):
-
-                check_result = check_image_exploitation(image=compress_image(v_image))
-
-                if not check_result[0]:
-
-                    return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-
-        processed_keywords = ",".join(i for i in product_keywords)
-                
-        
-        try:
-            with transaction.atomic():
-                product = Product.objects.create(
-                    product_store=store,
-                    product_name=frontend_data["product_name"],
-                    product_description=frontend_data['product_description'],
-                    product_keywords=processed_keywords,
-                    product_sub_category=frontend_data['product_subcategory']
-                    )
-
-                for idx, variant in enumerate(product_variants):
-                    new_variant = ProductVariant.objects.create(
-                        product=product,
-                        variant_name=variant['name'],
-                        variant_price=variant['price'],
-                        variant_quantity=variant['quantity']
-                    )
-
-                    # pull actual uploaded files
-                    variant_images = request.FILES.getlist(f"variant_{idx}_image")
-
-                    if not variant_images:
-
-                        raise ValidationError(f"No images provided for variant #{idx}")
-
-                    for image in variant_images:
-
-                        VariantImage.objects.create(
-                            variant=new_variant,
-                            variant_image=compress_image(image=image)
-                        )
-                
-                return Response(f"Product '{product.product_name} Is Created Successfully", status=status.HTTP_200_OK)
-
-        except ValidationError as ve:
-
-            return Response(str(ve), status=status.HTTP_400_BAD_REQUEST)
-
-        except IntegrityError:
-            
-            return Response(
-                f"The Product '{frontend_data['product_name']}' Already Exists In Your Store",
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-
-
-
-
 
 class CreateProduct(APIView):
 
@@ -320,119 +178,435 @@ class CreateProduct(APIView):
 
             return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
 
-
-        # RETREIVE DATA FROM FRONTEND
-
-        frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) , "product_price" : request.data.get("product_price",None), "product_quantity" : request.data.get("product_quantity", None) , "product_description" : request.data.get("product_description",None), "uploaded_images" : request.FILES.getlist("product_image",None), "product_keywords" : request.data.get('product_keywords',None), "variant_names" : request.data.getlist('variant_name'), "variant_images" : request.FILES.getlist('variant_image')}
-
+        frontend_data = {
+            "product_name" : request.data.get("product_name", None),
+            "product_subcategory" : request.data.get("product_subcategory", None),
+            "product_description" : request.data.get("product_description", None),
+            "product_base_price" : request.data.get("product_base_price",None),
+            "product_images" : request.FILES.getlist('product_image',None),
+            "raw_keywords" : request.data.get("product_keywords", None),
+            "raw_variants" : request.data.get("product_variants", None)
+            }
         
-        # VALIDATE THE FIELDS
+        for field, value in frontend_data.items():
 
-        fields_validation = check_frontend_fields(fields=frontend_data)
+            if value is None:
+                print(f"Enter Correct Data For {field}")
+                continue  # Skip further checks if None
 
-        
-        if not fields_validation[0]:
-
-            return Response({fields_validation[2]}, status=status.HTTP_400_BAD_REQUEST)
-
-        
-        
-        # COMPRESS THE IMAGES
+            if field != "raw_keywords" and field != "raw_variants" and field != "product_images" and field != "product_base_price":
+                if re.match(r"^\s*$", value):
+                    print(f"{field} Cannot Be Empty or Blank Space")
 
 
-        compresseed_images = []
-        variant_compresseed_images = []
+            if field == "raw_keywords":
+                try:
 
-        
-        for image in frontend_data.get('uploaded_images'):
+                    keywords = json.loads(frontend_data['raw_keywords'])
+
+                    if not isinstance(keywords, list):
+
+                        return Response(f"Keywords Must Be A List", status=status.HTTP_400_BAD_REQUEST)
+                    
+                    elif len(keywords) < 5:
+
+                        return Response(f"Atleast 5 Keywords Must Be Entered", status=status.HTTP_400_BAD_REQUEST)
+                    
+                except json.JSONDecodeError:
+
+                    return Response(f"Invalid JSON For Keywords", status=status.HTTP_400_BAD_REQUEST)
+
             
-            compresseed_images.append(compress_image(image=image))
-        
-        
-        
-        for v_image in frontend_data.get('variant_images'):
-            
-            variant_compresseed_images.append(compress_image(image=v_image))
+            if field == "product_images":
 
-        
-        # UPDATE THE ORIGINAL WITH COMPRESSED
+                if len(frontend_data['product_images']) < 1:
 
-        
-        frontend_data.update({"uploaded_images":compresseed_images})
-        frontend_data.update({"variant_images":variant_compresseed_images})
+                    return Response(f"Atleast 1 Image Must Be Provided", status=status.HTTP_400_BAD_REQUEST)
+                
 
 
-        # CHECK IMAGES EXPLOITATION
+            if field == "product_base_price":
 
-        for img in frontend_data.get('uploaded_images'):
+                if int(frontend_data['product_base_price']) < 1:
 
-            check_result = check_image_exploitation(image=img)
+                    return Response(f"Product Base Price Must Be Greater Than Zero", status=status.HTTP_400_BAD_REQUEST)
 
-            if not check_result[0]:
 
-                return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+            if field == "raw_variants":
 
-        
-        # VARIANT IMAGES CHECK
-        
-        for v_img in frontend_data.get('variant_images'):
+                try:
 
-            v_check_result = check_image_exploitation(image=v_img)
+                    variants = json.loads(frontend_data['raw_variants'])
 
-            if not v_check_result[0]:
+                    if not isinstance(variants, list):
 
-                return Response(v_check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+                        return Response(f"Product Variants Must Be A List", status=status.HTTP_400_BAD_REQUEST)
+                    
+                    elif len(variants) < 1:
+
+                        return Response("At least 1 Variant Must Be Provided",status=status.HTTP_200_OK)
+
+                except json.JSONDecodeError:
+
+                    return Response("Invalid JSON For Variants",status=status.HTTP_200_OK)
             
 
 
-        if len([keyword for keyword in str(frontend_data.get('product_keywords')).split(",") if keyword.strip()]) < 5:
+        product_variants = json.loads(frontend_data.get('raw_variants'))
+        product_keywords = json.loads(frontend_data.get('raw_keywords'))   
 
-            if len(str(frontend_data.get('product_keywords')).split(",")) == 1:
 
-                return Response("Please Enter Comma Seperated Keywords",status=status.HTTP_400_BAD_REQUEST)
 
-            return Response(f"Please Enter 5 Valid Comma Seperated Keywords For Your Product",status=status.HTTP_400_BAD_REQUEST)
+        for image in frontend_data['product_images']:
+
+            try:
+
+                image = Image.open(image)
+                image.verify()
+
+                print(f"Image '{image}' is Verified")
+
+            except (IOError, SyntaxError) as e:
+
+                return Response(f"File '{image}' Isn't An Image", status=status.HTTP_406_NOT_ACCEPTABLE)
+        
+
+        for img in frontend_data['product_images']:
+
+                check_result = check_image_exploitation(image=compress_image(img))
+
+                if not check_result[0]:
+
+                    return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
 
         
-        processed_keywords = ",".join(i for i in str(frontend_data.get('product_keywords')).split(","))
+        processed_keywords = ",".join(i for i in product_keywords)
 
-        # CREATE THE PRODUCT
 
         try:
-    
-            product = Product.objects.create(
-                product_store = store,
-                product_quantity = frontend_data.get('product_quantity'),
-                product_name = frontend_data.get('product_name'),
-                product_price = int(frontend_data.get("product_price")),
-                product_description = frontend_data.get('product_description'),
-                product_sub_category = frontend_data.get('product_subcategory'),
-                product_keywords = processed_keywords
-                )
-        
-        except IntegrityError as e:
+            with transaction.atomic():
+                product = Product.objects.create(
+                    product_store=store,
+                    product_name=frontend_data["product_name"],
+                    product_description=frontend_data['product_description'],
+                    product_base_price=int(frontend_data['product_base_price']),
+                    product_keywords=processed_keywords,
+                    product_sub_category=frontend_data['product_subcategory']
+                    )
 
-            return Response(f"The Product '{frontend_data.get('product_name')}' Already Exists In Your Store",status=status.HTTP_400_BAD_REQUEST)
+                for variant_category in product_variants:
 
-        for image in frontend_data.get('uploaded_images'):
+                    new_variant_category = ProductVariantCategory.objects.create(
+                        product=product,
+                        category_title=variant_category['title'],
+                    )
 
-            ProductImage.objects.create(product=product,image=image)
-        
-        
-        try:
-            
-            for vimg, vname in zip(frontend_data.get('variant_images'),frontend_data.get('variant_names')):
+                    for variant in variant_category['variants']:
 
-                ProductVariant.objects.create(product=product, variant_name=vname, variant_image=vimg)
+                        ProductVariant.objects.create(
+                            variant_category=new_variant_category,
+                            variant_name=variant['name'],
+                            extra_price=int(variant['extraPrice']),
+                            variant_quantity=int(variant['quantity'])
+                        )
+
+                
+                for image in frontend_data['product_images']:
+
+                    ProductImage.objects.create(
+                        product=product,
+                        image=compress_image(image=image)
+                    )
+                
+                return Response(f"Product '{product.product_name} Is Created Successfully", status=status.HTTP_200_OK)
+
+        except ValidationError as ve:
+
+            return Response(str(ve), status=status.HTTP_400_BAD_REQUEST)
 
         except IntegrityError:
+            
+            return Response(
+                f"The Product '{frontend_data['product_name']}' Already Exists In Your Store",
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-            return Response("No Duplicate Variants Can Be Created", status=status.HTTP_400_BAD_REQUEST)
+
+        return Response("Working Correctly 😊", status=status.HTTP_200_OK)
+
+
+
+
+# class TestCreateProduct(APIView):
+
+#     permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
+
+
+#     def post(self, request):
+
+#         try:
+
+#             store = SellerStore.objects.get(user=request.user)
+
+#         except SellerStore.DoesNotExist:
+
+#             return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
+
+#         frontend_data = {
+#             "product_name" : request.data.get("product_name", None),
+#             "product_subcategory" : request.data.get("product_subcategory", None),
+#             "product_description" : request.data.get("product_description", None),
+#             "raw_keywords" : request.data.get("product_keywords", None),
+#             "raw_variants" : request.data.get("product_variants", None)
+#             }
+        
+        
+#         for field, value in frontend_data.items():
+
+#             if value is None:
+#                 print(f"Enter Correct Data For {field}")
+#                 continue  # Skip further checks if None
+
+#             if field != "raw_keywords" and field != "raw_variants":
+#                 if re.match(r"^\s*$", value):
+#                     print(f"{field} Cannot Be Empty or Blank Space")
+
+#             if field == "raw_keywords":
+#                 try:
+#                     keywords = json.loads(frontend_data['raw_keywords'])
+#                     if not isinstance(keywords, list):
+#                         print('Keywords Must Be A List')
+#                     elif len(keywords) < 5:
+#                         print("At least 5 Keywords Must Be Entered")
+#                 except json.JSONDecodeError:
+#                     print("Invalid JSON for Keywords")
+
+#             if field == "raw_variants":
+#                 try:
+#                     variants = json.loads(frontend_data['raw_variants'])
+#                     if not isinstance(variants, list):
+#                         print("Product Variants Must Be A List")
+#                     elif len(variants) < 1:
+#                         print("At least 1 Variant Must Be Provided")
+#                 except json.JSONDecodeError:
+#                     print("Invalid JSON for Variants")
+
+
+
+#         product_variants = json.loads(frontend_data.get('raw_variants'))
+#         product_keywords = json.loads(frontend_data.get('raw_keywords'))
+        
+#         print(f"Product Name : {frontend_data['product_name']}")
+#         print(f"Product Sub Category : {frontend_data['product_subcategory']}")
+#         print(f"Product Description : {frontend_data['product_description']}")
+#         print(f"Product Keywords : {product_keywords}")
+#         print(f"Product Variants : {product_variants}")
 
         
-        # RETURN THE RESPONSE
+#         for idx, variant in enumerate(product_variants):
 
-        return Response(f"Product '{product.product_name}' Is Created Successfully",status=status.HTTP_200_OK)
+#             for image in request.FILES.getlist(f'variant_{idx}_image'):
+
+#                 try:
+
+#                     image = Image.open(image)
+#                     image.verify()
+
+#                     print(f"Image 'variant_{idx}_image : {image} is Verified")
+
+#                 except (IOError, SyntaxError) as e:
+
+#                     print(f"File 'variant_{idx}_image' : {image} Isn't An Image")
+
+#             for v_image in request.FILES.getlist(f'variant_{idx}_image'):
+
+#                 check_result = check_image_exploitation(image=compress_image(v_image))
+
+#                 if not check_result[0]:
+
+#                     return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
+                
+
+#         processed_keywords = ",".join(i for i in product_keywords)
+                
+        
+#         try:
+#             with transaction.atomic():
+#                 product = Product.objects.create(
+#                     product_store=store,
+#                     product_name=frontend_data["product_name"],
+#                     product_description=frontend_data['product_description'],
+#                     product_keywords=processed_keywords,
+#                     product_sub_category=frontend_data['product_subcategory']
+#                     )
+
+#                 for idx, variant in enumerate(product_variants):
+#                     new_variant = ProductVariant.objects.create(
+#                         product=product,
+#                         variant_name=variant['name'],
+#                         variant_price=variant['price'],
+#                         variant_quantity=variant['quantity']
+#                     )
+
+#                     # pull actual uploaded files
+#                     variant_images = request.FILES.getlist(f"variant_{idx}_image")
+
+#                     if not variant_images:
+
+#                         raise ValidationError(f"No images provided for variant #{idx}")
+
+#                     for image in variant_images:
+
+#                         VariantImage.objects.create(
+#                             variant=new_variant,
+#                             variant_image=compress_image(image=image)
+#                         )
+                
+#                 return Response(f"Product '{product.product_name} Is Created Successfully", status=status.HTTP_200_OK)
+
+#         except ValidationError as ve:
+
+#             return Response(str(ve), status=status.HTTP_400_BAD_REQUEST)
+
+#         except IntegrityError:
+            
+#             return Response(
+#                 f"The Product '{frontend_data['product_name']}' Already Exists In Your Store",
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+
+
+
+
+
+# class CreateProduct(APIView):
+
+#     permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
+
+#     def post(self, request):
+
+#         try:
+
+#             store = SellerStore.objects.get(user=request.user)
+
+#         except SellerStore.DoesNotExist:
+
+#             return Response("Store Doesn't Exists",status=status.HTTP_400_BAD_REQUEST)
+
+
+#         # RETREIVE DATA FROM FRONTEND
+
+#         frontend_data = {"product_name" : request.data.get("product_name",None), "product_subcategory" : request.data.get('product_subcategory',None) , "product_price" : request.data.get("product_price",None), "product_quantity" : request.data.get("product_quantity", None) , "product_description" : request.data.get("product_description",None), "uploaded_images" : request.FILES.getlist("product_image",None), "product_keywords" : request.data.get('product_keywords',None), "variant_names" : request.data.getlist('variant_name'), "variant_images" : request.FILES.getlist('variant_image')}
+
+        
+#         # VALIDATE THE FIELDS
+
+#         fields_validation = check_frontend_fields(fields=frontend_data)
+
+        
+#         if not fields_validation[0]:
+
+#             return Response({fields_validation[2]}, status=status.HTTP_400_BAD_REQUEST)
+
+        
+        
+#         # COMPRESS THE IMAGES
+
+
+#         compresseed_images = []
+#         variant_compresseed_images = []
+
+        
+#         for image in frontend_data.get('uploaded_images'):
+            
+#             compresseed_images.append(compress_image(image=image))
+        
+        
+        
+#         for v_image in frontend_data.get('variant_images'):
+            
+#             variant_compresseed_images.append(compress_image(image=v_image))
+
+        
+#         # UPDATE THE ORIGINAL WITH COMPRESSED
+
+        
+#         frontend_data.update({"uploaded_images":compresseed_images})
+#         frontend_data.update({"variant_images":variant_compresseed_images})
+
+
+#         # CHECK IMAGES EXPLOITATION
+
+#         for img in frontend_data.get('uploaded_images'):
+
+#             check_result = check_image_exploitation(image=img)
+
+#             if not check_result[0]:
+
+#                 return Response(check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        
+#         # VARIANT IMAGES CHECK
+        
+#         for v_img in frontend_data.get('variant_images'):
+
+#             v_check_result = check_image_exploitation(image=v_img)
+
+#             if not v_check_result[0]:
+
+#                 return Response(v_check_result[1],status=status.HTTP_406_NOT_ACCEPTABLE)
+            
+
+
+#         if len([keyword for keyword in str(frontend_data.get('product_keywords')).split(",") if keyword.strip()]) < 5:
+
+#             if len(str(frontend_data.get('product_keywords')).split(",")) == 1:
+
+#                 return Response("Please Enter Comma Seperated Keywords",status=status.HTTP_400_BAD_REQUEST)
+
+#             return Response(f"Please Enter 5 Valid Comma Seperated Keywords For Your Product",status=status.HTTP_400_BAD_REQUEST)
+
+        
+#         processed_keywords = ",".join(i for i in str(frontend_data.get('product_keywords')).split(","))
+
+#         # CREATE THE PRODUCT
+
+#         try:
+    
+#             product = Product.objects.create(
+#                 product_store = store,
+#                 product_quantity = frontend_data.get('product_quantity'),
+#                 product_name = frontend_data.get('product_name'),
+#                 product_price = int(frontend_data.get("product_price")),
+#                 product_description = frontend_data.get('product_description'),
+#                 product_sub_category = frontend_data.get('product_subcategory'),
+#                 product_keywords = processed_keywords
+#                 )
+        
+#         except IntegrityError as e:
+
+#             return Response(f"The Product '{frontend_data.get('product_name')}' Already Exists In Your Store",status=status.HTTP_400_BAD_REQUEST)
+
+#         for image in frontend_data.get('uploaded_images'):
+
+#             ProductImage.objects.create(product=product,image=image)
+        
+        
+#         try:
+            
+#             for vimg, vname in zip(frontend_data.get('variant_images'),frontend_data.get('variant_names')):
+
+#                 ProductVariant.objects.create(product=product, variant_name=vname, variant_image=vimg)
+
+#         except IntegrityError:
+
+#             return Response("No Duplicate Variants Can Be Created", status=status.HTTP_400_BAD_REQUEST)
+
+        
+#         # RETURN THE RESPONSE
+
+#         return Response(f"Product '{product.product_name}' Is Created Successfully",status=status.HTTP_200_OK)
 
 
 

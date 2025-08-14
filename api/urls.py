@@ -15,9 +15,9 @@ urlpatterns = [
 
     path('get_product_subcategories', views.GetSubCategoriesFromParent.as_view()),
     
-    path('create_product', views.CreateProduct.as_view()),
+    # path('create_product', views.TestCreateProduct.as_view()),
 
-    path('create_test_product', views.TestCreateProduct.as_view()),
+    path('create_product', views.CreateProduct.as_view()),
 
     path('get_all_products/', views.GetAllProducts.as_view()),
     

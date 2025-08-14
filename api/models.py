@@ -20,6 +20,7 @@ class Product(models.Model):
     product_store = models.ForeignKey(SellerStore, on_delete=models.CASCADE, related_name="store_products")
     product_name = models.CharField(max_length=255, db_index=True)
     product_description = models.TextField()
+    product_base_price = models.PositiveBigIntegerField(default=1)
     product_keywords = models.TextField(default="")
     product_sub_category = models.CharField(max_length=50, null=True, blank=True)
     sold_count = models.PositiveIntegerField(default=0)
@@ -52,34 +53,45 @@ class ProductImage(models.Model):
 
 
 
+class ProductVariantCategory(models.Model):
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variant_categories")
+    category_title = models.CharField(max_length=60)
+
+
+    def __str__(self):
+        return f"{self.category_title} Category For {self.product.product_name} | {self.product.product_store.store_name}"
+
+
+
 class ProductVariant(models.Model):
 
-    product = models.ForeignKey(Product,on_delete=models.CASCADE,related_name='product_variants')
+    variant_category = models.ForeignKey(ProductVariantCategory, on_delete=models.CASCADE, related_name='variants', null=True)
     variant_name = models.CharField(max_length=50)
-    variant_price = models.PositiveBigIntegerField(default=0)
+    extra_price = models.PositiveBigIntegerField(default=0)
     variant_quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['product','variant_name'],
-                name = 'unique_variant_per_product'
+                fields=['variant_category','variant_name'],
+                name = 'unique_variant_per_category'
             )
         ]
     
     def __str__(self) -> str:
-        return f"Variant {self.variant_name} | {self.product.product_name}"
+        return f"Variant {self.variant_name} | {self.variant_category.category_title} | {self.variant_category.product.product_name}"
 
 
 
 
-class VariantImage(models.Model):
+# class VariantImage(models.Model):
 
-    variant = models.ForeignKey(ProductVariant,on_delete=models.CASCADE,related_name='variant_images')
-    variant_image = models.ImageField(upload_to="product_variants", validators=[FileExtensionValidator(allowed_extensions=['png','jpg'])], null=True, blank=True)
+#     variant = models.ForeignKey(ProductVariant,on_delete=models.CASCADE,related_name='variant_images')
+#     variant_image = models.ImageField(upload_to="product_variants", validators=[FileExtensionValidator(allowed_extensions=['png','jpg'])], null=True, blank=True)
 
-    def __str__(self) -> str:
-        return f"Variant Image Of {self.variant.variant_name} | {self.variant.product.product_name}"
+#     def __str__(self) -> str:
+#         return f"Variant Image Of {self.variant.variant_name} | {self.variant.product.product_name}"
 
 
 
