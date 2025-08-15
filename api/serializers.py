@@ -92,7 +92,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         
         model = Product
-        fields = ['id','product_store', 'product_name', 'product_images' ,'product_sub_category' ,'product_description', 'product_keywords' , 'average_rating', 'is_product_in_cart', 'is_product_in_wishlist', 'sold_count', 'variant_categories']
+        fields = ['id','product_store', 'product_name', 'product_images' ,'product_sub_category' ,'product_description', 'product_base_price', 'product_keywords' , 'average_rating', 'is_product_in_cart', 'is_product_in_wishlist', 'sold_count', 'variant_categories']
 
     def get_average_rating(self, obj):
 
