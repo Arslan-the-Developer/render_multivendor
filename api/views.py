@@ -1041,9 +1041,12 @@ class AddModifyCartProduct(APIView):
     def post(self, request):
 
         product_id = request.data.get("product_id",None)
+        
+        variant_id = request.data.get("variant_id",None)
+
         product_quantity = request.data.get("product_quantity",None)
 
-        if not product_id:
+        if not product_id or not variant_id:
 
             return Response("No Product ID was Provided", status=status.HTTP_400_BAD_REQUEST)
 
@@ -1053,7 +1056,9 @@ class AddModifyCartProduct(APIView):
 
             cart, created = UserCart.objects.get_or_create(user=request.user)
 
-            new_cart_product = CartItem.objects.create(cart=cart, product=product, quantity = int(product_quantity) if product_quantity is not None else 1)
+            variant = ProductVariant(id=variant_id)
+
+            new_cart_product = CartItem.objects.create(cart=cart, product=product, variant=variant, quantity = int(product_quantity) if product_quantity is not None else 1)
 
             return Response(f"{new_cart_product.quantity} '{product.product_name}' is Added to {request.user.username}'s Cart")
 
@@ -1171,17 +1176,25 @@ class CreateUserCartOrder(APIView):
 
         cart = UserCart.objects.get(user = request.user)
 
+        delivery_address = request.data.get("delivery_address",None)
+
         cart_items = cart.cart_items.all()
+
+        
+        if not delivery_address:
+
+            return Response("No Delivery Address Provided", status=status.HTTP_400_BAD_REQUEST)
+
 
         # ------------------- CREATE USER ORDER -----------------------
 
-        order = UserOrder.objects.create(user = request.user)
+        order = UserOrder.objects.create(user = request.user, delivery_address= delivery_address)
 
         for i in range(0, len(cart_items)):
 
-            UserOrderItem.objects.create(order = order, product = cart_items[i].product, product_quantity = cart_items[i].quantity)
+            UserOrderItem.objects.create(order = order, product = cart_items[i].product, product_quantity = cart_items[i].quantity, product_name = cart_items[i].product.product_name, variant_name = cart_items[i].variant.variant_name, unit_price = (cart_items[i].product.product_base_price + cart_items[i].variant.extra_price), total_price = ((cart_items[i].product.product_base_price * int(cart_items[i].quantity)) + cart_items[i].variant.extra_price))
 
-        order.order_total = sum([i.product_quantity * i.product.product_price for i in order.order_items.all()])
+        order.order_total = sum([i.total_price for i in order.order_items.all()])
 
         try:
 
@@ -1252,31 +1265,39 @@ class CreateUserProductOrder(APIView):
     def post(self, request):
 
         product_id = request.data.get("product_id",None)
+
+        variant_id = request.data.get("variant_id",None)
         
         order_product_quantity = request.data.get("order_product_quantity",None)
 
         incoming_delivery_address = request.data.get('order_delivery_address',None)
 
-        if product_id is None or order_product_quantity is None or incoming_delivery_address is None:
+        if product_id is None or variant_id is None or order_product_quantity is None or incoming_delivery_address is None:
 
-            return Response('Product ID, Quantity and Delivery Address Must Be Provided', status=status.HTTP_400_BAD_REQUEST)
+            return Response('Product ID, Variant ID, Quantity and Delivery Address Must Be Provided', status=status.HTTP_400_BAD_REQUEST)
         
         try:
 
             product = Product.objects.get(id=product_id)
 
+            variant = ProductVariant.objects.get(id=variant_id)
+
         except (Product.DoesNotExist, ValidationError):
 
             return Response("Error Fetching The Product", status=status.HTTP_404_NOT_FOUND)
+        
+        except ProductVariant.DoesNotExist:
+
+            return Response("Error Fetching The Product Variant", status=status.HTTP_404_NOT_FOUND)
         
 
         # --------------------- CREATE USER ORDER -------------------------
 
         new_user_order = UserOrder.objects.create(user = request.user, delivery_address = incoming_delivery_address)
 
-        UserOrderItem.objects.create(order = new_user_order, product = product, product_quantity = int(order_product_quantity))
+        UserOrderItem.objects.create(order = new_user_order, product = product, variant = variant, product_quantity = int(order_product_quantity), product_name = product.product_name, variant_name = variant.variant_name, unit_price = (product.product_base_price + variant.extra_price), total_price = ((product.product_base_price * int(order_product_quantity)) + variant.extra_price))
 
-        order_total = product.product_price * int(order_product_quantity)
+        order_total = (product.product_base_price * int(order_product_quantity)) + variant.extra_price
 
         new_user_order.order_total = order_total
         
