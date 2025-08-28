@@ -1326,7 +1326,7 @@ class CreateUserProductOrder(APIView):
 
             product.sold_count += order_product_quantity
 
-            product.product_quantity -= order_product_quantity
+            variant.variant_quantity -= order_product_quantity
 
             product.save()
 
