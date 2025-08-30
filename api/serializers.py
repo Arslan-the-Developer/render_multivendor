@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, SellerOrder, SellerOrderItem, ProductVariant, ProductImage, ProductVariantCategory
+from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, SellerOrder, SellerOrderItem, ProductVariant, ProductImage, ProductVariantCategory, UserOrderItemVariant
 from authentication.models import SellerStore, User
 
 from django.db.models import Avg
@@ -183,17 +183,27 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 
+class UserOrdetItemVariantSerializer(serializers.ModelSerializer):
+
+    variant_category = ProductVariantCategorySerializer(many=True)
+    variant = ProductVariantSerializer(many=True)
+
+    class Meta:
+
+        fields = ['variant_category','variant','variant_name']
+
+
 
 class UserOrderItemSerializer(serializers.ModelSerializer):
 
     product = ProductSerializer()
-    variant = ProductVariantSerializer()
+    order_item_variants = UserOrdetItemVariantSerializer(many=True)
 
     class Meta:
 
         model = UserOrderItem
 
-        fields = ['product','variant','product_quantity','product_name','variant_name','unit_price','product_quantity','total_price']
+        fields = ['product','order_item_variants','product_quantity','product_name','unit_price','product_quantity','total_price']
 
 
 

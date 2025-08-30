@@ -15,7 +15,7 @@ import stripe.error
 
 from authentication.permissions import IsSeller, IsApprovedSeller
 from authentication.models import SellerStore, User
-from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, ProductImage, ProductVariantCategory
+from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, ProductImage, ProductVariantCategory, UserOrderItemVariant
 from .serializers import ProductSerializer, ReviewSerializer, CartItemSerializer, UserOrderSerializer, WishlistSerializer, RevenueMonthSerializer, UserDeliveryAddressSerializer, SellerOrderSerializer
 
 # DJANGO DEPENDENCIES
@@ -1266,40 +1266,86 @@ class CreateUserProductOrder(APIView):
 
         product_id = request.data.get("product_id",None)
 
-        variant_id = request.data.get("variant_id",None)
+        variants_data = request.data.get("variants", [])
         
         order_product_quantity = request.data.get("order_product_quantity",None)
 
         incoming_delivery_address = request.data.get('order_delivery_address',None)
 
-        if product_id is None or variant_id is None or order_product_quantity is None or incoming_delivery_address is None:
-
-            return Response('Product ID, Variant ID, Quantity and Delivery Address Must Be Provided', status=status.HTTP_400_BAD_REQUEST)
+        if not product_id or not variants_data or not order_product_quantity or not incoming_delivery_address:
+            
+            return Response(
+                "Product, Variants, Quantity, and Delivery Address are required",
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         try:
 
             product = Product.objects.get(id=product_id)
 
-            variant = ProductVariant.objects.get(id=variant_id)
-
         except (Product.DoesNotExist, ValidationError):
 
             return Response("Error Fetching The Product", status=status.HTTP_404_NOT_FOUND)
         
-        except ProductVariant.DoesNotExist:
-
-            return Response("Error Fetching The Product Variant", status=status.HTTP_404_NOT_FOUND)
         
 
         # --------------------- CREATE USER ORDER -------------------------
 
         new_user_order = UserOrder.objects.create(user = request.user, delivery_address = incoming_delivery_address)
 
-        UserOrderItem.objects.create(order = new_user_order, product = product, variant = variant, product_quantity = int(order_product_quantity), product_name = product.product_name, variant_name = variant.variant_name, unit_price = (product.product_base_price + variant.extra_price), total_price = ((product.product_base_price * int(order_product_quantity)) + variant.extra_price))
+         # Calculate base price
+        unit_price = product.product_base_price
+        extra_price = 0
 
-        order_total = (product.product_base_price * int(order_product_quantity)) + variant.extra_price
+         # Create order item first
+        order_item = UserOrderItem.objects.create(
+            order=new_user_order,
+            product=product,
+            product_quantity=int(order_product_quantity),
+            unit_price=0,  # temp, will update later
+            total_price=0  # temp, will update later
+        )
 
-        new_user_order.order_total = order_total
+        # Loop through variants
+        for variant_data in variants_data:
+            
+            try:
+
+                variant_category = ProductVariantCategory.objects.get(id=variant_data["variant_category_id"])
+
+                variant = ProductVariant.objects.get(id=variant_data["variant_id"], variant_category=variant_category)
+
+            except (ProductVariantCategory.DoesNotExist, ProductVariant.DoesNotExist):
+
+                return Response("Invalid variant or category", status=status.HTTP_400_BAD_REQUEST)
+
+            # Add extra price if needed
+            extra_price += variant.extra_price
+
+            # Create order item variant link
+            UserOrderItemVariant.objects.create(
+                order_item=order_item,
+                variant_category=variant_category,
+                variant=variant,
+                variant_name=variant.variant_name
+            )
+
+            # Reduce stock for selected variant
+            variant.variant_quantity -= int(order_product_quantity)
+            variant.save()
+
+
+         # Finalize prices
+        unit_price = product.product_base_price + extra_price
+        total_price = unit_price * int(order_product_quantity)
+
+        order_item.unit_price = unit_price
+        order_item.total_price = total_price
+        order_item.save()
+
+        # Update order total
+        new_user_order.order_total = total_price
+        new_user_order.save()
         
         amount_in_cents = int(float(new_user_order.order_total) * 100)
 

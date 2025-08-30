@@ -213,13 +213,9 @@ class UserOrderItem(models.Model):
 
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
 
-    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True)
-
     # Snapshot Fields (so orders don't change if product info changes later)
 
     product_name = models.CharField(max_length=255)
-
-    variant_name = models.CharField(max_length=50)
 
     unit_price = models.PositiveIntegerField()
 
@@ -232,6 +228,16 @@ class UserOrderItem(models.Model):
         return f"{self.order.user.username}'s Order : {self.order.id} Item | {self.product.product_name} | {self.product.product_store.store_name}"
     
 
+
+class UserOrderItemVariant(models.Model):
+    
+    order_item = models.ForeignKey("UserOrderItem", on_delete=models.CASCADE, related_name='order_item_variants')
+
+    variant_category = models.ForeignKey("ProductVariantCategory", on_delete=models.CASCADE)
+
+    variant = models.ForeignKey("ProductVariant", on_delete=models.CASCADE)
+
+    variant_name = models.CharField(max_length=50)
 
 
 
