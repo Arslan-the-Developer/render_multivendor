@@ -1311,7 +1311,7 @@ class CreateUserProductOrder(APIView):
             
             try:
 
-                variant_category = ProductVariantCategory.objects.get(id=variant_data["variant_category_id"])
+                variant_category = ProductVariantCategory.objects.get(id=variant_data["category_id"])
 
                 variant = ProductVariant.objects.get(id=variant_data["variant_id"], variant_category=variant_category)
 
