@@ -190,6 +190,8 @@ class UserOrdetItemVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
 
+        model = UserOrderItemVariant
+
         fields = ['variant_category','variant','variant_name']
 
 
