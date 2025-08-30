@@ -185,8 +185,8 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 class UserOrdetItemVariantSerializer(serializers.ModelSerializer):
 
-    variant_category = ProductVariantCategorySerializer(many=True)
-    variant = ProductVariantSerializer(many=True)
+    variant_category = ProductVariantCategorySerializer()
+    variant = ProductVariantSerializer()
 
     class Meta:
 
