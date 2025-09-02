@@ -902,24 +902,6 @@ class ProductsSearchView(APIView):
 
 
 
-class ProductSuggestions(APIView):
-
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-
-        query = request.GET.get("q", "").strip()
-
-        if query:
-
-            products = Product.objects.filter(name__icontains=query)[:5]
-            data = [{"id": p.id, "name": p.name} for p in products]
-
-            return Response(data)
-        
-        return Response([])
-
-
 
 
 class TrendingSuggestions(APIView):
@@ -933,12 +915,12 @@ class TrendingSuggestions(APIView):
         if query:
             # Related trending (contains user input)
             top_queries = (
-                SearchQuery.objects.filter(query__icontains=query)
+                SearchLog.objects.filter(query__icontains=query)
                 .order_by("-count")[:5]
             )
         else:
             # General trending
-            top_queries = SearchQuery.objects.order_by("-count")[:5]
+            top_queries = SearchLog.objects.order_by("-count")[:5]
 
         data = [{"query": q.query, "count": q.count} for q in top_queries]
         return Response(data)

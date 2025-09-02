@@ -29,9 +29,7 @@ urlpatterns = [
     
     path('user_search_products/<str:search_word>', views.ProductsSearchView.as_view()),
 
-    path("search-suggestions", views.ProductSuggestions.as_view(), name="search_suggestions"),
-
-    path("trending-suggestions", views.TrendingSuggestions.as_view(), name="trending_suggestions"),
+    path("trending-suggestions/", views.TrendingSuggestions.as_view(), name="trending_suggestions"),
 
     path('get_store_products', views.GetStoreProducts.as_view()),
 
