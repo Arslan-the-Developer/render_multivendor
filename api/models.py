@@ -225,7 +225,7 @@ class UserOrderItem(models.Model):
 
 
     def __str__(self) -> str:
-        return f"{self.order.user.username}'s Order : {self.order.id} Item | {self.product.product_name} | {self.product.product_store.store_name}"
+        return f"{self.order.user.username}'s Order : {self.order.id} Item | {self.product_name}"
     
 
 
@@ -297,3 +297,18 @@ class SellerRevenueMonth(models.Model):
 
     def __str__(self) -> str:
         return str(self.seller_store.store_name+" , "+self.month_name+" , "+str(self.month_year))
+    
+
+
+
+
+class SearchLog(models.Model):
+    
+    query = models.CharField(max_length=255, unique=True)  # unique search terms
+    count = models.PositiveIntegerField(default=1)  # how many times searched
+    last_searched = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.query} ({self.count})"
+
+

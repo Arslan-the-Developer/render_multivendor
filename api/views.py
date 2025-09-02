@@ -4,7 +4,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
@@ -15,7 +15,7 @@ import stripe.error
 
 from authentication.permissions import IsSeller, IsApprovedSeller
 from authentication.models import SellerStore, User
-from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, ProductImage, ProductVariantCategory, UserOrderItemVariant
+from .models import Product, ProductReview, ReviewImage, UserCart, CartItem, UserOrder, UserOrderItem, SellerOrder, SellerOrderItem, Wishlist, SellerRevenueMonth, UserDeliveryAddress, ProductVariant, ProductImage, ProductVariantCategory, UserOrderItemVariant, SearchLog
 from .serializers import ProductSerializer, ReviewSerializer, CartItemSerializer, UserOrderSerializer, WishlistSerializer, RevenueMonthSerializer, UserDeliveryAddressSerializer, SellerOrderSerializer
 
 # DJANGO DEPENDENCIES
@@ -862,6 +862,12 @@ class ProductsSearchView(APIView):
 
         if search_word and search_word.strip():
 
+            search_log, created = SearchLog.objects.get_or_create(query=search_word)
+
+            if not created:
+                search_log.count += 1
+                search_log.save()
+
             search_query = SearchQuery(search_word)
 
             search_products = Product.objects.annotate(
@@ -893,6 +899,49 @@ class ProductsSearchView(APIView):
         
         return paginator.get_paginated_response(serializer.data)
 
+
+
+
+class ProductSuggestions(APIView):
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+
+        query = request.GET.get("q", "").strip()
+
+        if query:
+
+            products = Product.objects.filter(name__icontains=query)[:5]
+            data = [{"id": p.id, "name": p.name} for p in products]
+
+            return Response(data)
+        
+        return Response([])
+
+
+
+
+class TrendingSuggestions(APIView):
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        
+        query = request.GET.get("q", "").strip().lower()
+
+        if query:
+            # Related trending (contains user input)
+            top_queries = (
+                SearchQuery.objects.filter(query__icontains=query)
+                .order_by("-count")[:5]
+            )
+        else:
+            # General trending
+            top_queries = SearchQuery.objects.order_by("-count")[:5]
+
+        data = [{"query": q.query, "count": q.count} for q in top_queries]
+        return Response(data)
 
 
 
