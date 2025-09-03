@@ -103,8 +103,8 @@ class SellerRegistrationSerializer(serializers.Serializer):
         message = {
             "secret": settings.SMS_CHEF_API_SECRET,
             "mode": "devices",
-            "device": "00000000-0000-0000-c73e-dcf13f788560",
-            "sim": 1,
+            "device": "c73edcf13f788560",
+            "sim": 2,
             "priority": 1,
             "phone": f"+92{validated_data['store_contact_number']}",
             "message": f"Howdy {user.username}! Here's Your Seller Account OTP : {user.otp}"
