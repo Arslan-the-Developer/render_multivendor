@@ -43,7 +43,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
 
         model = ProductImage
-        fields = ['image']  # Avoid nesting product inside image serializer unless required
+        fields = ['id','image']  # Avoid nesting product inside image serializer unless required
 
 
 
