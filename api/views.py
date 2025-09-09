@@ -546,131 +546,137 @@ class ModifyProduct(APIView):
         # Step 2: Update Product in one block
         with transaction.atomic():
 
-            if frontend_data["product_name"]:
-                product.product_name = frontend_data["product_name"]
+            try:
 
-            if frontend_data["product_sub_category"]:
-                product.product_sub_category = frontend_data["product_sub_category"]
+                if frontend_data["product_name"]:
+                    product.product_name = frontend_data["product_name"]
 
-            if frontend_data["product_description"]:
-                product.product_description = frontend_data["product_description"]
+                if frontend_data["product_sub_category"]:
+                    product.product_sub_category = frontend_data["product_sub_category"]
 
-            if frontend_data["product_base_price"]:
-                product.product_base_price = int(frontend_data["product_base_price"])
+                if frontend_data["product_description"]:
+                    product.product_description = frontend_data["product_description"]
 
-            if product_keywords:
-                product.product_keywords = ",".join(product_keywords)
+                if frontend_data["product_base_price"]:
+                    product.product_base_price = int(frontend_data["product_base_price"])
+
+                if product_keywords:
+                    product.product_keywords = ",".join(product_keywords)
 
 
 
-            # Step 3: Handle related models
-            # Variants
-            for change_name , change_value in product_variants_changes.items():
+                # Step 3: Handle related models
+                # Variants
+                for change_name , change_value in product_variants_changes.items():
 
-                if change_name == "categories_added":
+                    if change_name == "categories_added":
 
-                    if len(change_value) > 0:
+                        if len(change_value) > 0:
 
-                        for added_category in change_value:
+                            for added_category in change_value:
 
-                            new_product_variant_category = ProductVariantCategory.objects.create(
-                                product=product,
-                                category_title=added_category['title']
-                            )
+                                new_product_variant_category = ProductVariantCategory.objects.create(
+                                    product=product,
+                                    category_title=added_category['title']
+                                )
 
-                            for new_variant_for_new_category in added_category['variants']:
+                                for new_variant_for_new_category in added_category['variants']:
+
+                                    ProductVariant.objects.create(
+                                        variant_category=new_product_variant_category,
+                                        variant_name=new_variant_for_new_category['variant_name'],
+                                        extra_price=int(new_variant_for_new_category['extra_price']),
+                                        variant_quantity=int(new_variant_for_new_category['variant_quantity'])
+                                    )
+                    
+                    if change_name == 'categories_deleted':
+
+                        if len(change_value) > 0:
+
+                            for deleted_cat in change_value:
+
+                                ProductVariantCategory.objects.get(id=deleted_cat).delete()
+
+                    
+                    if change_name == 'categories_updated':
+
+                        if len(change_value) > 0:
+
+                            for category_to_update in change_value:
+
+                                cat_to_update = ProductVariantCategory.objects.get(id=category_to_update['id']).category_title = category_to_update['new_title']
+
+                                cat_to_update.save()
+                    
+
+                    if change_name == 'variants_added':
+
+                        if len(change_value) > 0:
+
+                            for added_variant_in_existing_category in change_value:
+
+                                existing_category = ProductVariantCategory.objects.get(id=added_variant_in_existing_category['category_id'])
 
                                 ProductVariant.objects.create(
-                                    variant_category=new_product_variant_category,
-                                    variant_name=new_variant_for_new_category['variant_name'],
-                                    extra_price=int(new_variant_for_new_category['extra_price']),
-                                    variant_quantity=int(new_variant_for_new_category['variant_quantity'])
+                                    variant_category=existing_category,
+                                    variant_name=change_value['name'],
+                                    extra_price=int(change_value['extraPrice']),
+                                    variant_quantity=int(change_value['quantity'])
                                 )
+                    
+                    if change_name == 'variants_updated':
+
+                        if len(change_value) > 0:
+
+                            for variant_to_update in change_value:
+
+                                var_to_update = ProductVariant.objects.get(id=variant_to_update['id'])
+
+                                if variant_to_update.get('variant_name') is not None:
+
+                                    var_to_update.variant_name = variant_to_update['variant_name']
+                                
+                                if variant_to_update.get('variant_quantity') is not None:
+
+                                    var_to_update.variant_quantity = int(variant_to_update['variant_quantity'])
+
+                                if variant_to_update.get('extra_price') is not None:
+
+                                    var_to_update.extra_price = int(variant_to_update['extra_price'])
+                                
+                                var_to_update.save()
+
+                    
+                    if change_name == 'variants_deleted':
+
+                        if len(change_value) > 0:
+
+                            for variant_to_delete in change_value:
+
+                                ProductVariant.objects.delete(id=variant_to_delete)
+
+
+
+                # Deleted images
+                if frontend_data["deleted_images"]:
+                    ProductImage.objects.filter(
+                        id__in=frontend_data["deleted_images"], product=product
+                    ).delete()
+
+
+                # New images
+                for image in frontend_data["new_images"]:
+                    ProductImage.objects.create(
+                        product=product,
+                        image=compress_image(image=image),
+                    )
                 
-                if change_name == 'categories_deleted':
 
-                    if len(change_value) > 0:
-
-                        for deleted_cat in change_value:
-
-                            ProductVariantCategory.objects.get(id=deleted_cat).delete()
-
-                
-                if change_name == 'categories_updated':
-
-                    if len(change_value) > 0:
-
-                        for category_to_update in change_value:
-
-                            cat_to_update = ProductVariantCategory.objects.get(id=category_to_update['id']).category_title = category_to_update['new_title']
-
-                            cat_to_update.save()
-                
-
-                if change_name == 'variants_added':
-
-                    if len(change_value) > 0:
-
-                        for added_variant_in_existing_category in change_value:
-
-                            existing_category = ProductVariantCategory.objects.get(id=added_variant_in_existing_category['category_id'])
-
-                            ProductVariant.objects.create(
-                                variant_category=existing_category,
-                                variant_name=change_value['name'],
-                                extra_price=int(change_value['extraPrice']),
-                                variant_quantity=int(change_value['quantity'])
-                            )
-                
-                if change_name == 'variants_updated':
-
-                    if len(change_value) > 0:
-
-                        for variant_to_update in change_value:
-
-                            var_to_update = ProductVariant.objects.get(id=variant_to_update['id'])
-
-                            if variant_to_update['variant_name']:
-
-                                var_to_update.variant_name = variant_to_update['variant_name']
-                            
-                            if variant_to_update['variant_quantity']:
-
-                                var_to_update.variant_quantity = int(variant_to_update['variant_quantity'])
-
-                            if variant_to_update['extra_price']:
-
-                                var_to_update.extra_price = int(variant_to_update['extra_price'])
-                            
-                            variant_to_update.save()
-
-                
-                if change_name == 'variants_deleted':
-
-                    if len(change_value) > 0:
-
-                        for variant_to_delete in change_value:
-
-                            ProductVariant.objects.delete(id=variant_to_delete)
-
-
-
-            # Deleted images
-            if frontend_data["deleted_images"]:
-                ProductImage.objects.filter(
-                    id__in=frontend_data["deleted_images"], product=product
-                ).delete()
-
-
-            # New images
-            for image in frontend_data["new_images"]:
-                ProductImage.objects.create(
-                    product=product,
-                    image=compress_image(image=image),
-                )
+                product.save()
             
+            except Exception as e:
 
-            product.save()
+                return Response(f"{e}", status=status.HTTP_400_BAD_REQUEST)
 
         return Response(f"Product '{product.product_name}' updated successfully", status=200)
 
