@@ -540,7 +540,7 @@ class ModifyProduct(APIView):
 
             for image_to_delete in frontend_data['deleted_images']:
 
-                ProductImage.objects.delete(id=image_to_delete)
+                ProductImage.objects.get(id=image_to_delete).delete()
 
         
         # Step 2: Update Product in one block
@@ -593,7 +593,7 @@ class ModifyProduct(APIView):
 
                         for deleted_cat in change_value:
 
-                            ProductVariantCategory.objects.delete(id=deleted_cat)
+                            ProductVariantCategory.objects.get(id=deleted_cat).delete()
 
                 
                 if change_name == 'categories_updated':
