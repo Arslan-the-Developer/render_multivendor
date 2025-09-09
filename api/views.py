@@ -456,106 +456,117 @@ class GetSubCategoriesFromParent(APIView):
 
     
 
-
 class ModifyProduct(APIView):
 
     permission_classes = [IsAuthenticated, IsSeller, IsApprovedSeller]
 
     def put(self, request, id):
-
+        
         try:
 
-            product = Product.objects.get(id=id, product_store__user=request.user)
+            product = Product.objects.get(id=id)
 
-        except (Product.DoesNotExist, ValidationError):
-            
-            return Response("Product Not Found", status=status.HTTP_404_NOT_FOUND)
+        except Product.DoesNotExist:
 
+            return Response("Product not found", status=status.HTTP_404_NOT_FOUND)
+
+        # Step 1: Parse + Validate
         frontend_data = {
-            "product_name": request.data.get("product_name", product.product_name),
-            "product_subcategory": request.data.get("product_subcategory", product.product_sub_category),
-            "product_description": request.data.get("product_description", product.product_description),
-            "product_base_price": request.data.get("product_base_price", product.product_base_price),
-            "product_images": request.FILES.getlist("product_image", None),
-            "raw_keywords": request.data.get("product_keywords", None),
-            "raw_variants": request.data.get("product_variants", None),
+            "product_name": request.data.get("product_name"),
+            "product_sub_category": request.data.get("product_subcategory"),
+            "product_description": request.data.get("product_description"),
+            "raw_keywords": request.data.get("product_keywords"),
+            "product_base_price": request.data.get("product_base_price"),
+            "raw_variants_changes": request.data.get("variant_categories_changes"),
+            "deleted_images": request.data.getlist("deleted_images"),
+            "new_images": request.data.getlist("new_images"),
         }
 
-        try:
-            with transaction.atomic():
-                # --- Keywords ---
-                if frontend_data["raw_keywords"]:
-                    try:
-                        keywords = json.loads(frontend_data["raw_keywords"])
-                        if not isinstance(keywords, list) or len(keywords) < 5:
-                            return Response("At least 5 Keywords Required", status=status.HTTP_400_BAD_REQUEST)
-                        product.product_keywords = ",".join(keywords)
-                    except json.JSONDecodeError:
-                        return Response("Invalid JSON for Keywords", status=status.HTTP_400_BAD_REQUEST)
+        # ---- Validate fields ----
+        if frontend_data["product_name"] and len(frontend_data["product_name"]) < 8:
+            return Response("Product Name must contain 8 characters", status=400)
 
-                # --- Variants ---
-                if frontend_data["raw_variants"]:
-                    try:
-                        variants = json.loads(frontend_data["raw_variants"])
-                        if not isinstance(variants, list) or len(variants) < 1:
-                            return Response("At least 1 Variant Required", status=status.HTTP_400_BAD_REQUEST)
+        if frontend_data["product_description"] and len(frontend_data["product_description"]) < 30:
+            return Response("Description must contain 30 characters", status=400)
 
-                        # Delete old variants and recreate
-                        ProductVariantCategory.objects.filter(product=product).delete()
-                        for variant_category in variants:
-                            new_cat = ProductVariantCategory.objects.create(
-                                product=product,
-                                category_title=variant_category["title"],
-                            )
-                            for variant in variant_category["variants"]:
-                                ProductVariant.objects.create(
-                                    variant_category=new_cat,
-                                    variant_name=variant["name"],
-                                    extra_price=int(variant["extraPrice"]),
-                                    variant_quantity=int(variant["quantity"])
-                                )
-                    except json.JSONDecodeError:
-                        return Response("Invalid JSON for Variants", status=status.HTTP_400_BAD_REQUEST)
+        # Keywords
+        product_keywords = []
+        if frontend_data["raw_keywords"]:
+            try:
+                product_keywords = json.loads(frontend_data["raw_keywords"])
+                if not isinstance(product_keywords, list) or len(product_keywords) < 5:
+                    return Response("At least 5 keywords required", status=400)
+            except json.JSONDecodeError:
+                return Response("Invalid JSON for keywords", status=400)
 
-                # --- Images ---
-                if frontend_data["product_images"]:
-                    ProductImage.objects.filter(product=product).delete()
-                    for img in frontend_data["product_images"]:
-                        check_result = check_image_exploitation(image=compress_image(img))
-                        if not check_result[0]:
-                            return Response(check_result[1], status=status.HTTP_406_NOT_ACCEPTABLE)
-                        ProductImage.objects.create(product=product, image=compress_image(img))
+        # Variants
+        product_variants_changes = {}
+        if frontend_data["raw_variants_changes"]:
+            try:
+                product_variants_changes = json.loads(frontend_data["raw_variants_changes"])
+                if not isinstance(product_variants_changes, dict):
+                    return Response("Variants must be a dict", status=400)
+            except json.JSONDecodeError:
+                return Response("Invalid JSON for variants", status=400)
 
-                # --- Base fields ---
+        
+        # Images
+        if frontend_data["new_images"]:
+            for image in frontend_data["new_images"]:
+                try:
+                    img = Image.open(image)
+                    img.verify()
+                except Exception:
+                    return Response(f"File '{image}' is not a valid image", status=406)
+
+                check_result = check_image_exploitation(image=compress_image(image))
+                if not check_result[0]:
+                    return Response(check_result[1], status=406)
+
+        
+        # Step 2: Update Product in one block
+        with transaction.atomic():
+
+            if frontend_data["product_name"]:
                 product.product_name = frontend_data["product_name"]
-                product.product_sub_category = frontend_data["product_subcategory"]
+
+            if frontend_data["product_sub_category"]:
+                product.product_sub_category = frontend_data["product_sub_category"]
+
+            if frontend_data["product_description"]:
                 product.product_description = frontend_data["product_description"]
 
-                if int(frontend_data["product_base_price"]) < 1:
-                    return Response("Base Price must be greater than 0", status=status.HTTP_400_BAD_REQUEST)
+            if frontend_data["product_base_price"]:
                 product.product_base_price = int(frontend_data["product_base_price"])
 
-                product.save()
+            if product_keywords:
+                product.product_keywords = ",".join(product_keywords)
 
-                serializer = ProductSerializer(product)
-                return Response(serializer.data, status=status.HTTP_200_OK)
 
-        except IntegrityError:
-            return Response("Product with same name already exists", status=status.HTTP_400_BAD_REQUEST)
-        except ValidationError as ve:
-            return Response(str(ve), status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, id):
-        try:
-            product = Product.objects.get(id=id, product_store__user=request.user)
-        except (Product.DoesNotExist, ValidationError):
-            return Response("Product Not Found", status=status.HTTP_404_NOT_FOUND)
+            # Step 3: Handle related models
+            # Variants
 
-        product_name = product.product_name
-        product.delete()
-        return Response(f"Product {product_name} Deleted", status=status.HTTP_200_OK)
+
+            # Deleted images
+            if frontend_data["deleted_images"]:
+                ProductImage.objects.filter(
+                    id__in=frontend_data["deleted_images"], product=product
+                ).delete()
+
+
+            # New images
+            for image in frontend_data["new_images"]:
+                ProductImage.objects.create(
+                    product=product,
+                    image=compress_image(image=image),
+                )
+            
+
+            product.save()
+
+        return Response(f"Product '{product.product_name}' updated successfully", status=200)
+
 
 
 
