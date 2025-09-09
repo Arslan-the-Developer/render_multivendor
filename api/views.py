@@ -546,6 +546,94 @@ class ModifyProduct(APIView):
 
             # Step 3: Handle related models
             # Variants
+            for change_name , change_value in product_variants_changes.items():
+
+                if change_name == "categories_added":
+
+                    if len(change_value) > 0:
+
+                        for added_category in change_value:
+
+                            new_product_variant_category = ProductVariantCategory.objects.create(
+                                product=product,
+                                category_title=added_category['title']
+                            )
+
+                            for new_variant_for_new_category in added_category['variants']:
+
+                                ProductVariant.objects.create(
+                                    variant_category=new_product_variant_category,
+                                    variant_name=new_variant_for_new_category['variant_name'],
+                                    extra_price=int(new_variant_for_new_category['extra_price']),
+                                    variant_quantity=int(new_variant_for_new_category['variant_quantity'])
+                                )
+                
+                if change_name == 'categories_deleted':
+
+                    if len(change_value) > 0:
+
+                        for deleted_cat in change_value:
+
+                            ProductVariantCategory.objects.delete(id=deleted_cat)
+
+                
+                if change_name == 'categories_updated':
+
+                    if len(change_value) > 0:
+
+                        for category_to_update in change_value:
+
+                            cat_to_update = ProductVariantCategory.objects.get(id=category_to_update['id']).category_title = category_to_update['new_title']
+
+                            cat_to_update.save()
+                
+
+                if change_name == 'variants_added':
+
+                    if len(change_value) > 0:
+
+                        for added_variant_in_existing_category in change_value:
+
+                            existing_category = ProductVariantCategory.objects.get(id=added_variant_in_existing_category['category_id'])
+
+                            ProductVariant.objects.create(
+                                variant_category=existing_category,
+                                variant_name=change_value['name'],
+                                extra_price=int(change_value['extraPrice']),
+                                variant_quantity=int(change_value['quantity'])
+                            )
+                
+                if change_name == 'variants_updated':
+
+                    if len(change_value) > 0:
+
+                        for variant_to_update in change_value:
+
+                            var_to_update = ProductVariant.objects.get(id=variant_to_update['id'])
+
+                            if variant_to_update['variant_name']:
+
+                                var_to_update.variant_name = variant_to_update['variant_name']
+                            
+                            if variant_to_update['variant_quantity']:
+
+                                var_to_update.variant_quantity = int(variant_to_update['variant_quantity'])
+
+                            if variant_to_update['extra_price']:
+
+                                var_to_update.extra_price = int(variant_to_update['extra_price'])
+                            
+                            variant_to_update.save()
+
+                
+                if change_name == 'variants_deleted':
+
+                    if len(change_value) > 0:
+
+                        for variant_to_delete in change_value:
+
+                            ProductVariant.objects.delete(id=variant_to_delete)
+
 
 
             # Deleted images
