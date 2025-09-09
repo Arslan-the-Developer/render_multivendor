@@ -512,16 +512,35 @@ class ModifyProduct(APIView):
         
         # Images
         if frontend_data["new_images"]:
+            
             for image in frontend_data["new_images"]:
+                
                 try:
                     img = Image.open(image)
                     img.verify()
+            
                 except Exception:
+            
                     return Response(f"File '{image}' is not a valid image", status=406)
 
                 check_result = check_image_exploitation(image=compress_image(image))
+
                 if not check_result[0]:
+                    
                     return Response(check_result[1], status=406)
+                
+                else:
+
+                    ProductImage.objects.create(
+                        product=product,
+                        image=compress_image(image)
+                    )
+            
+        if frontend_data['deleted_images']:
+
+            for image_to_delete in frontend_data['deleted_images']:
+
+                ProductImage.objects.delete(id=image_to_delete)
 
         
         # Step 2: Update Product in one block
