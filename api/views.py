@@ -611,15 +611,15 @@ class ModifyProduct(APIView):
 
                     if len(change_value) > 0:
 
-                        for added_variant_in_existing_category in change_value:
+                        for variant_to_add_in_existing_category in change_value:
 
-                            existing_category = ProductVariantCategory.objects.get(id=int(added_variant_in_existing_category['category_id']))
+                            existing_category = ProductVariantCategory.objects.get(id=int(variant_to_add_in_existing_category['category_id']))
 
                             ProductVariant.objects.create(
                                 variant_category=existing_category,
-                                variant_name=change_value['name'],
-                                extra_price=int(change_value['extraPrice']),
-                                variant_quantity=int(change_value['quantity'])
+                                variant_name=variant_to_add_in_existing_category['name'],
+                                extra_price=int(variant_to_add_in_existing_category['extraPrice']),
+                                variant_quantity=int(variant_to_add_in_existing_category['quantity'])
                             )
                 
                 if change_name == 'variants_updated':
