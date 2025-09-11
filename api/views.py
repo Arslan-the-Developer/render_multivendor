@@ -931,12 +931,10 @@ class AddModifyCartProduct(APIView):
     def post(self, request):
 
         product_id = request.data.get("product_id",None)
-        
-        variant_id = request.data.get("variant_id",None)
 
         product_quantity = request.data.get("product_quantity",None)
 
-        if not product_id or not variant_id:
+        if not product_id:
 
             return Response("No Product ID was Provided", status=status.HTTP_400_BAD_REQUEST)
 
@@ -946,9 +944,7 @@ class AddModifyCartProduct(APIView):
 
             cart, created = UserCart.objects.get_or_create(user=request.user)
 
-            variant = ProductVariant(id=variant_id)
-
-            new_cart_product = CartItem.objects.create(cart=cart, product=product, variant=variant, quantity = int(product_quantity) if product_quantity is not None else 1)
+            new_cart_product = CartItem.objects.create(cart=cart, product=product, quantity = int(product_quantity) if product_quantity is not None else 1)
 
             return Response(f"{new_cart_product.quantity} '{product.product_name}' is Added to {request.user.username}'s Cart")
 

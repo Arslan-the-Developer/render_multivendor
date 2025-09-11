@@ -173,13 +173,12 @@ class ReviewSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
 
     product = ProductSerializer()
-    variant = ProductVariantSerializer()
 
     class Meta:
 
         model = CartItem
 
-        fields = ['product','quantity','variant']
+        fields = ['product','quantity']
 
 
 

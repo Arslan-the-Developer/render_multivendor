@@ -168,13 +168,11 @@ class CartItem(models.Model):
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
-    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, null=True, blank=True)
-
     quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
 
-        unique_together = ['cart','product','variant']
+        unique_together = ['cart','product']
 
     def __str__(self) -> str:
         return f"{self.cart.user.username}'s Cart Item | '{self.product.product_name}' from {self.product.product_store.store_name}"
