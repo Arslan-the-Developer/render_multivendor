@@ -36,7 +36,7 @@ class ApproveRejectSellerApplication(APIView):
 
         seller_application_id = request.data.get('application_id')
 
-        application = SellerApplication.objects.get(id=int(seller_application_id))
+        application = SellerApplication.objects.get(id=seller_application_id)
 
         seller_store = SellerStore.objects.get(id = application.seller_store.id)
 
